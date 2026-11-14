@@ -22,20 +22,26 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "21"
           cache: gradle
 
-      # Do not install the obsolete "tools" SDK package.
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
         with:
           packages: platform-tools
 
+      # Android 17 / API 37 is currently published as android-37.0.
       - name: Install Android SDK 37
-        run: sdkmanager --install "platforms;android-37"
+        run: |
+          sdkmanager --install "platforms;android-37.0"
+          # AGP's compileSdk=37 lookup expects the directory name android-37.
+          if [ ! -e "$ANDROID_HOME/platforms/android-37" ]; then
+            ln -s "$ANDROID_HOME/platforms/android-37.0" "$ANDROID_HOME/platforms/android-37"
+          fi
+          sdkmanager --list_installed | grep -E "platforms;android-37(\.0)?"
 
       - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
@@ -47,7 +53,6 @@ jobs:
             -Dorg.gradle.jvmargs="-Xmx4g -Dfile.encoding=UTF-8" \
             :app:assembleDebug
 
-      # Upload immediately after a successful build, before optional tests.
       - name: Upload debug APK
         if: steps.build.outcome == 'success'
         uses: actions/upload-artifact@v4
